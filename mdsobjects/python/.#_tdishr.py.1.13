@@ -1,0 +1,148 @@
+import ctypes as _C
+import os as _os
+import traceback as _tb
+import tree as _tree
+import _descriptor as _descr
+import _mdsshr
+
+TdiShr=_mdsshr._load_library('TdiShr')
+
+report='REPORT_TDI' in _os.environ
+
+class TdiException(Exception):
+    pass
+
+def restoreContext():
+    t=_tree.Tree.getActiveTree()
+    if t is not None:
+      t.restoreContext()
+
+def reportStack(func):
+    def wrapper(*args):
+        if report:
+            s=_tb.extract_stack()[:-1]
+            print(s)
+            return func(*args)
+            for idx in range(len(s)):
+                if s[idx][0]=='mdsdata.py':
+                    print(s[idx-1:])
+                    break
+            print(s[idx:])
+        return func(*args)
+    return wrapper
+        
+@reportStack
+def TdiCompile(expression,args=None):
+    """Compile a TDI expression. Format: TdiCompile('expression-string')"""
+    xd=_descr.descriptor_xd()
+    done=False
+    try:
+        _tree.Tree.lock()
+        restoreContext()
+        if args is None:
+            status=TdiShr.TdiCompile(_C.pointer(_descr.descriptor(expression)),_C.pointer(xd),_C.c_void_p(-1))
+        else:
+            if isinstance(args,tuple):
+                if len(args) > 0:
+                    if isinstance(args[0],tuple):
+                        ans = TdiCompile(expression,args[0])
+                        done=True
+                if not done:
+                    exp='TdiShr.TdiCompile(_C.pointer(_descr.descriptor(expression))'
+                    for i in range(len(args)):
+                        exp=exp+',_C.pointer(_descr.descriptor(args[%d]))' % i
+                    exp=exp+',_C.pointer(xd),_C.c_void_p(-1))'
+                    status=eval(exp)
+            else:
+                raise TypeError('Arguments must be passed as a tuple')
+    finally:
+        _tree.Tree.unlock()
+    if done:
+        return ans
+    if (status & 1 != 0):
+            return xd.value
+    else:
+        raise TdiException(_mdsshr.MdsGetMsg(status,"Error compiling expression"))
+
+@reportStack
+def TdiExecute(expression,args=None):
+    """Compile and execute a TDI expression. Format: TdiExecute('expression-string')"""
+    xd=_descr.descriptor_xd()
+    done=False
+    try:
+        _tree.Tree.lock()
+        restoreContext()
+        if args is None:
+            status=TdiShr.TdiExecute(_C.pointer(_descr.descriptor(expression)),_C.pointer(xd),_C.c_void_p(-1))
+        else:
+            if isinstance(args,tuple):
+                if len(args) > 0:
+                    if isinstance(args[0],tuple):
+                        ans = TdiExecute(expression,args[0])
+                        done=True
+                if not done:
+                    exp='TdiShr.TdiExecute(_C.pointer(_descr.descriptor(expression))'
+                    for i in range(len(args)):
+                        exp=exp+',_C.pointer(_descr.descriptor(args[%d]))' % i
+                    exp=exp+',_C.pointer(xd),_C.c_void_p(-1))'
+                    status=eval(exp)
+            else:
+                raise TypeError('Arguments must be passed as a tuple')
+    finally:
+        _tree.Tree.unlock()
+    if done:
+        return ans
+    if (status & 1 != 0):
+            return xd.value
+    else:
+        raise TdiException(_mdsshr.MdsGetMsg(status,"Error compiling expression"))
+
+@reportStack
+def TdiDecompile(value):
+    """Compile and execute a TDI expression. Format: TdiExecute('expression-string')"""
+    xd=_descr.descriptor_xd()
+    try:
+        _tree.Tree.lock()
+        restoreContext()
+        status=TdiShr.TdiDecompile(_C.pointer(_descr.descriptor(value)),_C.pointer(xd),_C.c_void_p(-1))
+    finally:
+        _tree.Tree.unlock()
+    if (status & 1 != 0):
+        try:
+            return str(xd.value.value)
+        except Exception:
+            return str(xd.value.value)
+    else:
+        raise TdiException(_mdsshr.MdsGetMsg(status,"Error decompiling value"))
+
+@reportStack
+def TdiEvaluate(value):
+    """Evaluate and functions. Format: TdiEvaluate(data)"""
+    xd=_descr.descriptor_xd()
+    try:
+        _tree.Tree.lock()
+        restoreContext()
+        status=TdiShr.TdiEvaluate(_C.pointer(_descr.descriptor(value)),_C.pointer(xd),_C.c_void_p(-1))
+    finally:
+        _tree.Tree.unlock()
+    if (status & 1 != 0):
+        return xd.value
+    else:
+        raise TdiException(_mdsshr.MdsGetMsg(status,"Error evaluating value"))
+
+@reportStack
+def TdiData(value):
+    """Return primiitive data type. Format: TdiData(value)"""
+    xd=_descr.descriptor_xd()
+    try:
+        _tree.Tree.lock()
+        restoreContext()
+        status=TdiShr.TdiData(_C.pointer(_descr.descriptor(value)),_C.pointer(xd),_C.c_void_p(-1))
+    finally:
+        _tree.Tree.unlock()
+    if (status & 1 != 0):
+        return xd.value
+    else:
+        raise TdiException(_mdsshr.MdsGetMsg(status,"Error converting value to data"))
+
+CvtConvertFloat=TdiShr.CvtConvertFloat
